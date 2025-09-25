@@ -6,6 +6,10 @@ local:
 build:
 	docker compose build
 
+# Build sequentially to avoid rare Docker snapshot export flakes on macOS
+sbuild:
+	COMPOSE_PARALLEL_LIMIT=1 docker compose build
+
 shell:
 	docker compose run --rm web bash
 

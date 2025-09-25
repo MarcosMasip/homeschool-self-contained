@@ -36,11 +36,17 @@ Expected outcome:
 3) Build and start the web service
 
 ```bash
-docker compose up --build
+COMPOSE_PARALLEL_LIMIT=1 docker compose up --build web
+```
+
+Windows (PowerShell) alternative:
+
+```powershell
+$env:COMPOSE_PARALLEL_LIMIT=1; docker compose up --build web
 ```
 
 Expected outcome:
-- Image builds (includes frontend CSS, docs, and blog).
+- Image builds (includes frontend CSS, docs, and blog) without parallel-export issues.
 - Migrations run automatically on first start.
 - Logs end with Gunicorn listening: `Listening at: http://0.0.0.0:8000`.
 - App is reachable at http://localhost:8000.
@@ -48,7 +54,7 @@ Expected outcome:
 Tip: Run in background if you prefer
 
 ```bash
-docker compose up -d
+COMPOSE_PARALLEL_LIMIT=1 docker compose up -d web
 ```
 
 4) Start the background worker (new terminal)
@@ -120,6 +126,7 @@ Troubleshooting quick refs:
 - “Environment variable ... not set”: ensure `.env` exists (copy from `.env.example`) and re-run `docker compose up`.
 - “signup form not visible”: run step 5 to enable `signup_flag`.
 - Magic link points to example.com: run step 5 to set Site domain to `localhost:8000`.
+- Docker build/export error on macOS like “parent snapshot ... does not exist”: build/run sequentially with `COMPOSE_PARALLEL_LIMIT=1` as shown in step 3. If it still appears, run `docker builder prune -af` then try again, or temporarily disable BuildKit with `DOCKER_BUILDKIT=0 docker compose up --build web`.
 
 ## Native development (optional)
 
