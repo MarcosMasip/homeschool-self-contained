@@ -2,42 +2,124 @@
 
 An app for homeschool planning
 
-## Quickstart (Docker)
+## Self‑contained local run (Docker) — step by step
 
-This repo is self-contained for local development. No real external services are required and no real charges/emails occur in the default dev setup.
+This app runs fully locally with Docker Desktop (macOS/Windows/Linux). No real emails or payments occur. Follow these exact steps.
 
-1) Copy the example env and start services
+Prerequisite: Install Docker Desktop and ensure `docker compose` works.
+
+1) Clone and enter the repo
+
+```bash
+git clone https://github.com/MarcosMasip/homeschool-self-contained.git
+cd homeschool-self-contained
+```
+
+Expected outcome:
+- The repository is on your machine and your shell is in the project directory.
+
+2) Create your local env file
 
 ```bash
 cp .env.example .env
+```
+
+Windows (PowerShell) alternative:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Expected outcome:
+- A new `.env` file exists with safe local defaults (console email, no live services, Stripe in test mode with dummy keys).
+
+3) Build and start the web service
+
+```bash
 docker compose up --build
 ```
 
-Expected:
-- The web app starts on http://localhost:8000
-- Static assets/docs/blog are built in the image
-- DB migrations run on first start
+Expected outcome:
+- Image builds (includes frontend CSS, docs, and blog).
+- Migrations run automatically on first start.
+- Logs end with Gunicorn listening: `Listening at: http://0.0.0.0:8000`.
+- App is reachable at http://localhost:8000.
 
-2) Start the background worker (new terminal)
+Tip: Run in background if you prefer
+
+```bash
+docker compose up -d
+```
+
+4) Start the background worker (new terminal)
 
 ```bash
 docker compose up worker
 ```
 
-The worker processes background jobs (email magic-link). Leave it running.
+Expected outcome:
+- Huey worker starts and waits for jobs. Keep this terminal open; it will print emails (magic links) to the console.
 
-3) Enable the sign-in form and set the Site domain (one-time init)
+5) Enable the sign‑in form (feature flag) and set the Site domain (one‑time)
 
 ```bash
 docker compose exec web ./manage.py shell -c "from homeschool.core.models import Flag; Flag.objects.update_or_create(name='signup_flag', defaults={'everyone': True})"
 docker compose exec web ./manage.py shell -c "from django.contrib.sites.models import Site; Site.objects.update_or_create(id=1, defaults={'domain':'localhost:8000','name':'localhost'})"
 ```
 
-Now visit http://localhost:8000/signin, enter your email, and check the worker logs for the magic link printed to console. Click the link to log in.
+Expected outcome:
+- First command creates/enables the `signup_flag` so the email form appears.
+- Second command sets the Sites framework to `localhost:8000` so magic links open your local app.
 
-Notes:
-- Emails are printed to the worker console (`EMAIL_BACKEND=console`).
-- Stripe is disabled from live mode and uses dummy test keys by default; no real charges. Don’t click subscription buttons unless you set proper test data.
+6) Sign in via magic link (fully local)
+
+```text
+Open http://localhost:8000/signin in your browser
+Enter your email and submit
+```
+
+Expected outcome:
+- The page says “Please Check Your Email!”.
+- The worker terminal prints the email contents with a URL like:
+  `http://localhost:8000/login?token=…`
+- Click that URL to be logged in.
+
+Alternate (no worker): Generate your magic link directly
+
+```bash
+docker compose exec web ./manage.py shell -c "from homeschool.accounts.models import User; from sesame.utils import get_query_string; from homeschool.core.site import full_url_reverse; u=User.objects.get(email='YOUR_EMAIL_HERE'); print(full_url_reverse('sesame-login') + get_query_string(u))"
+```
+
+Expected outcome:
+- The command prints a full login URL. Open it to sign in.
+
+7) Create an admin user (optional, for /admin)
+
+```bash
+docker compose exec web ./manage.py createsuperuser
+```
+
+Expected outcome:
+- You’re prompted for email/password. “Superuser created successfully.” then you can log in at http://localhost:8000/admin.
+
+8) Stop services when you’re done
+
+```bash
+docker compose down
+```
+
+Expected outcome:
+- Containers and network are removed; your local SQLite DB file remains in the project folder.
+
+What stays local and safe:
+- Files: local filesystem (no S3). 
+- Email: printed to console (no real email sent).
+- Payments: Stripe live mode is OFF with dummy test keys; nothing real is charged. The subscriptions page loads Stripe.js only if you navigate to it—feel free to avoid that page for 100% offline usage.
+
+Troubleshooting quick refs:
+- “Environment variable ... not set”: ensure `.env` exists (copy from `.env.example`) and re-run `docker compose up`.
+- “signup form not visible”: run step 5 to enable `signup_flag`.
+- Magic link points to example.com: run step 5 to set Site domain to `localhost:8000`.
 
 ## Native development (optional)
 
