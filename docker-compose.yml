@@ -9,3 +9,9 @@ services:
     env_file: ".env"
     ports:
       - 8000:8000
+  worker:
+    build: .
+    volumes:
+      - .:/app
+    env_file: ".env"
+    command: ["./manage.py", "run_huey", "--skip-checks"]

@@ -2,7 +2,46 @@
 
 An app for homeschool planning
 
-## Setup
+## Quickstart (Docker)
+
+This repo is self-contained for local development. No real external services are required and no real charges/emails occur in the default dev setup.
+
+1) Copy the example env and start services
+
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
+Expected:
+- The web app starts on http://localhost:8000
+- Static assets/docs/blog are built in the image
+- DB migrations run on first start
+
+2) Start the background worker (new terminal)
+
+```bash
+docker compose up worker
+```
+
+The worker processes background jobs (email magic-link). Leave it running.
+
+3) Enable the sign-in form and set the Site domain (one-time init)
+
+```bash
+docker compose exec web ./manage.py shell -c "from homeschool.core.models import Flag; Flag.objects.update_or_create(name='signup_flag', defaults={'everyone': True})"
+docker compose exec web ./manage.py shell -c "from django.contrib.sites.models import Site; Site.objects.update_or_create(id=1, defaults={'domain':'localhost:8000','name':'localhost'})"
+```
+
+Now visit http://localhost:8000/signin, enter your email, and check the worker logs for the magic link printed to console. Click the link to log in.
+
+Notes:
+- Emails are printed to the worker console (`EMAIL_BACKEND=console`).
+- Stripe is disabled from live mode and uses dummy test keys by default; no real charges. Don’t click subscription buttons unless you set proper test data.
+
+## Native development (optional)
+
+If you prefer not to use Docker:
 
 ### Python
 
@@ -10,36 +49,27 @@ An app for homeschool planning
 
 ### JavaScript
 
-Node.js is required.
+Node.js is required (23.x preferred; Tailwind works on most recent LTS as well).
 
-```bash
-brew install nodejs
-```
-
-Install JS packages to get Tailwind CSS.
+Install JS packages for Tailwind CSS.
 
 ```bash
 npm --prefix frontend i
 ```
 
-## Development
-
-Bootstrap the local database.
+Install Python deps and run
 
 ```bash
-$ uv run manage.py migrate
+cp .env.example .env
+uv sync
+uv run manage.py migrate
+uv run honcho start -f Procfile
 ```
 
-Create a superuser account.
+Create a superuser (optional for /admin):
 
 ```bash
-$ uv run manage.py createsuperuser
-```
-
-Start the local web server.
-
-```bash
-$ make
+uv run manage.py createsuperuser
 ```
 
 ## Docker Compose
